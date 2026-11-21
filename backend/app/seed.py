@@ -1,10 +1,9 @@
 from datetime import date, datetime
 from decimal import Decimal
-from hashlib import sha256
 
 from sqlalchemy import select
 
-from app.database import Base, SessionLocal, engine
+from app.database import SessionLocal
 from app.models import (
     AcademicYear,
     Assessment,
@@ -27,14 +26,11 @@ from app.models import (
     Student,
     StudentGuardian,
     Subject,
-    User,
-    UserRole,
     Visitor,
 )
 
 
 def seed_database() -> None:
-    Base.metadata.create_all(bind=engine)
     with SessionLocal.begin() as db:
         if db.scalar(select(Student.id).limit(1)):
             counts = {
@@ -58,21 +54,6 @@ def seed_database() -> None:
         db.add(year)
         db.flush()
 
-        demo_accounts = [
-            ("sarah.chen@northstarschool.edu", UserRole.PRINCIPAL),
-            ("jordan.taylor@northstarschool.edu", UserRole.OFFICE_STAFF),
-            ("olivia.bennett@northstarschool.edu", UserRole.TEACHER),
-            ("james.wilson@example.com", UserRole.PARENT),
-            ("ava.wilson@northstarschool.edu", UserRole.STUDENT),
-            ("marcus.reed@northstarschool.edu", UserRole.SECURITY_GUARD),
-        ]
-        users = {}
-        for email, role in demo_accounts:
-            user = User(email=email, password_hash=sha256(b"demo-only").hexdigest(), role=role)
-            db.add(user)
-            users[email] = user
-        db.flush()
-
         staff_rows = [
             ("ST-1001", "Olivia", "Bennett", "Mathematics Teacher", "Academics", StaffType.TEACHING, "olivia.bennett@northstarschool.edu"),
             ("ST-1002", "Liam", "Foster", "English Teacher", "Academics", StaffType.TEACHING, "liam.foster@northstarschool.edu"),
@@ -91,7 +72,6 @@ def seed_database() -> None:
                 email=email,
                 phone="+1 (555) 230-4800",
                 hired_at=date(today.year - 3, 8, 1),
-                user_id=users[email].id if email in users else None,
             )
             db.add(person)
             staff.append(person)
@@ -99,7 +79,7 @@ def seed_database() -> None:
 
         levels = {}
         sections = {}
-        for grade_number in range(5, 9):
+        for grade_number in range(5, 10):
             level = GradeLevel(name=f"Grade {grade_number}", sort_order=grade_number)
             db.add(level)
             levels[grade_number] = level
@@ -121,6 +101,12 @@ def seed_database() -> None:
             ("ENG", "English Language"),
             ("SCI", "General Science"),
             ("SOC", "Social Studies"),
+            ("ART", "Art & Design"),
+            ("COMP", "Computer Science"),
+            ("PE", "Physical Education"),
+            ("MUSIC", "Music"),
+            ("CIVIC", "Civic Studies"),
+            ("WORLD", "World Languages"),
         ]
         subjects = []
         for code, name in subject_rows:
@@ -170,6 +156,9 @@ def seed_database() -> None:
             ("Ivy", "Singh", Gender.FEMALE),
             ("Leo", "Foster", Gender.MALE),
             ("Amara", "Hayes", Gender.FEMALE),
+            ("Harper", "Lee", Gender.FEMALE),
+            ("Adrian", "Kim", Gender.MALE),
+            ("Nadia", "Ali", Gender.FEMALE),
         ]
         students = []
         enrollments = []
@@ -185,7 +174,6 @@ def seed_database() -> None:
                 medical_notes="Seasonal allergies" if index % 5 == 0 else None,
                 allergies="Pollen" if index % 5 == 0 else None,
                 status=RecordStatus.ACTIVE,
-                user_id=users["ava.wilson@northstarschool.edu"].id if first == "Ava" else None,
             )
             db.add(student)
             students.append(student)
@@ -196,12 +184,10 @@ def seed_database() -> None:
             enrollment = Enrollment(student_id=student.id, section_id=section.id, enrolled_at=date(today.year - 1, 8, 15))
             db.add(enrollment)
             enrollments.append(enrollment)
-            guardian_user = users.get("james.wilson@example.com") if student.first_name == "Mia" else None
             guardian = Guardian(
-                user_id=guardian_user.id if guardian_user else None,
-                first_name="James" if guardian_user else f"{student.last_name}",
-                last_name="Wilson" if guardian_user else "Family",
-                email="james.wilson@example.com" if guardian_user else None,
+                first_name="James" if student.first_name == "Mia" else f"{student.last_name}",
+                last_name="Wilson" if student.first_name == "Mia" else "Family",
+                email="james.wilson@example.com" if student.first_name == "Mia" else None,
                 phone="+1 (555) 438-2200",
                 occupation="Parent",
                 address="Springfield, Illinois",
@@ -253,7 +239,7 @@ def seed_database() -> None:
                     visitor_id=visitor.id if not student else None,
                 )
             )
-    print("Seeded demo records for students, staff, academics, attendance, guardians, users, and gate movements.")
+    print("Seeded demo records for students, staff, academics, attendance, guardians, and gate movements.")
 
 
 if __name__ == "__main__":

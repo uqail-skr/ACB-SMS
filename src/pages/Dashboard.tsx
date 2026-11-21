@@ -8,7 +8,7 @@ import { Avatar, Button, PageHeading, StatCard, StatusBadge } from '../component
 import type { Student } from '../types'
 
 export function Dashboard() {
-  const { role } = useAuth()
+  const { role, user } = useAuth()
   const navigate = useNavigate()
   const [data, setData] = useState<DashboardData | null>(null)
   const [error, setError] = useState('')
@@ -20,7 +20,7 @@ export function Dashboard() {
   const guardView = role === 'Security Guard'
 
   return <div>
-    <PageHeading eyebrow={new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }).toUpperCase()} title={`Good morning, ${role === 'Principal' ? 'Sarah' : role === 'Teacher' ? 'Olivia' : role === 'Security Guard' ? 'Marcus' : role === 'Parent' ? 'James' : role === 'Student' ? 'Ava' : 'Jordan'} 👋`} description={studentView ? 'Here’s a look at your learning journey this term.' : 'Here’s what’s happening across your school today.'} action={<Button variant="secondary" onClick={() => window.print()}><span>↧</span> Download report</Button>} />
+    <PageHeading eyebrow={new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }).toUpperCase()} title={`Good morning, ${user?.username ?? ''} 👋`} description={studentView ? 'Here’s a look at your learning journey this term.' : 'Here’s what’s happening across your school today.'} action={<Button variant="secondary" onClick={() => window.print()}><span>↧</span> Download report</Button>} />
     {error && <div className="empty-state" role="alert">Dashboard data could not be loaded: {error}</div>}
     {data && (studentView ? <StudentDashboard parent={role === 'Parent'} /> : teacherView ? <TeacherDashboard /> : guardView ? <GuardDashboard data={data} onOpenGate={() => navigate('/gate-register')} /> : <AdminDashboard role={role} data={data} onOpenGate={() => navigate('/gate-register')} />)}
     {!data && !error && <p>Loading dashboard data…</p>}

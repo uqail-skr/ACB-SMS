@@ -106,3 +106,6 @@ html[data-theme='dark'] .grade-chip{background:#26395d;color:#b5c9ff}
 html[data-theme='dark'] .grade-chip.grade-fail{background:#472b30;color:#ffaaa5}
 html[data-theme='dark'] .summary-grade{background:#202b3e}
 html[data-theme='dark'] .summary-grade span,html[data-theme='dark'] .summary-grade small{color:#9ba8bb}
+.login-help{font-size:11px;color:#8993a2;text-align:center;margin:15px 0}
+.login-submit:disabled{opacity:.65;cursor:wait}
+.role-switcher strong{font-size:11px;color:#34435a;font-weight:600}

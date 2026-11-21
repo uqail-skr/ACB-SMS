@@ -104,10 +104,13 @@ class User(TimestampMixin, Base):
     __tablename__ = "users"
 
     id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
+    username: Mapped[str] = mapped_column(String(254), nullable=False)
     email: Mapped[str] = mapped_column(String(254), unique=True, nullable=False)
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
     role: Mapped[UserRole] = mapped_column(enum_type(UserRole, "user_role"), nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="true")
+
+    __table_args__ = (UniqueConstraint("username", name="uq_users_username"),)
 
     student: Mapped[Student | None] = relationship(back_populates="user", uselist=False)
     staff: Mapped[Staff | None] = relationship(back_populates="user", uselist=False)

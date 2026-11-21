@@ -1,14 +1,22 @@
-from contextlib import asynccontextmanager
 from datetime import date, datetime
 from decimal import Decimal
 from uuid import UUID
 
-from fastapi import Depends, FastAPI, HTTPException, Query
+from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import and_, func, select
 from sqlalchemy.orm import Session
 
-from app.database import Base, engine, get_db
+from app.auth import (
+    DUMMY_PASSWORD_HASH,
+    TOKEN_LIFETIME_SECONDS,
+    create_access_token,
+    decode_access_token,
+    verify_password,
+)
+from app.config import get_settings
+from app.database import get_db
 from app.models import (
     AcademicYear,
     Assessment,
@@ -33,11 +41,13 @@ from app.models import (
     Student,
     StudentGuardian,
     Subject,
+    User,
     Visitor,
 )
 from app.schemas import (
     AttendanceUpdate,
     GradebookUpdate,
+    LoginRequest,
     MovementCreate,
     MovementStatusUpdate,
     ReportCommentUpdate,
@@ -48,13 +58,46 @@ from app.schemas import (
 )
 
 
-@asynccontextmanager
-async def lifespan(_: FastAPI):
-    Base.metadata.create_all(bind=engine)
-    yield
+bearer_scheme = HTTPBearer(auto_error=False)
 
 
-app = FastAPI(title="Northstar School Management API", version="1.0.0", lifespan=lifespan)
+def get_current_user(
+    request: Request,
+    credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
+    db: Session = Depends(get_db),
+) -> User | None:
+    if request.url.path in {"/health", "/api/auth/login"} or not request.url.path.startswith("/api/"):
+        return None
+    if credentials is None or credentials.scheme.lower() != "bearer":
+        raise HTTPException(
+            status_code=401,
+            detail="Authentication required.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    try:
+        user_id = decode_access_token(credentials.credentials, get_settings().jwt_secret)
+    except ValueError:
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid or expired access token.",
+            headers={"WWW-Authenticate": "Bearer"},
+        ) from None
+
+    user = db.get(User, user_id)
+    if user is None or not user.is_active:
+        raise HTTPException(
+            status_code=401,
+            detail="Account is unavailable.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    return user
+
+
+app = FastAPI(
+    title="Northstar School Management API",
+    version="1.0.0",
+    dependencies=[Depends(get_current_user)],
+)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
@@ -185,6 +228,36 @@ def _movement_dto(movement: GateMovement) -> dict:
 @app.get("/health")
 def health_check() -> dict[str, str]:
     return {"status": "ok"}
+
+
+@app.post("/api/auth/login")
+def login(payload: LoginRequest, db: Session = Depends(get_db)) -> dict:
+    username = payload.username.strip().lower()
+    user = db.scalar(select(User).where(func.lower(User.username) == username))
+    password_valid = verify_password(
+        payload.password,
+        user.password_hash if user is not None else DUMMY_PASSWORD_HASH,
+    )
+    if user is None or not user.is_active or not password_valid:
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid username or password.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    return {
+        "access_token": create_access_token(user.id, get_settings().jwt_secret),
+        "token_type": "bearer",
+        "expires_in": TOKEN_LIFETIME_SECONDS,
+        "user": {"username": user.username, "email": user.email, "role": user.role.value},
+    }
+
+
+@app.get("/api/auth/me")
+def current_account(user: User | None = Depends(get_current_user)) -> dict:
+    if user is None:
+        raise HTTPException(status_code=401, detail="Authentication required.")
+    return {"username": user.username, "email": user.email, "role": user.role.value}
 
 
 @app.get("/api/students")
