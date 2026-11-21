@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
+import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { Activity, BookOpen, CalendarCheck, ChevronDown, ClipboardList, DoorOpen, GraduationCap, LayoutDashboard, LogOut, Menu, Moon, Settings, Shield, Sun, Users, X } from 'lucide-react'
 import { useAuth, roles } from '../context/AuthContext'
 import { Avatar, Notifications } from './Shared'
@@ -15,17 +15,20 @@ const navItems = [
 ]
 
 export function AppLayout() {
-  const { role, setRole, signIn } = useAuth()
+  const { user, role, signOut } = useAuth()
   const [mobileOpen, setMobileOpen] = useState(false)
   const [darkMode, setDarkMode] = useState(() => localStorage.getItem('sms-theme') === 'dark')
   const location = useLocation()
+  const navigate = useNavigate()
   const pageTitle = navItems.find((item) => item.path === location.pathname)?.label || 'Overview'
-  const initials = role === 'Principal' ? 'SC' : role === 'Security Guard' ? 'MR' : role === 'Parent' ? 'JW' : role === 'Student' ? 'AW' : role === 'Teacher' ? 'OB' : 'JT'
+  const initials = user?.username.slice(0, 2).toUpperCase() ?? ''
 
   useEffect(() => {
     document.documentElement.dataset.theme = darkMode ? 'dark' : 'light'
     localStorage.setItem('sms-theme', darkMode ? 'dark' : 'light')
   }, [darkMode])
+
+  if (!user || !role) return null
 
   return <div className="app-shell">
     {mobileOpen && <button className="mobile-scrim" aria-label="Close navigation" onClick={() => setMobileOpen(false)} />}
@@ -38,10 +41,10 @@ export function AppLayout() {
     </aside>
     <div className="main-panel">
       <header className="topbar"><button className="icon-button mobile-menu" aria-label="Open menu" onClick={() => setMobileOpen(true)}><Menu size={20} /></button><div className="breadcrumbs"><span>Northstar</span><span className="crumb-slash">/</span><strong>{pageTitle}</strong></div><div className="topbar-right">
-        <label className="role-switcher"><span>Viewing as</span><select aria-label="Switch demo role" value={role} onChange={(event) => { setRole(event.target.value as typeof role); signIn(event.target.value as typeof role) }}>{roles.map((item) => <option key={item}>{item}</option>)}</select><ChevronDown size={13} /></label>
+        <div className="role-switcher"><span>Role</span><strong>{role}</strong></div>
         <button className="icon-button theme-toggle" aria-label={darkMode ? 'Switch to light mode' : 'Switch to dark mode'} title={darkMode ? 'Switch to light mode' : 'Switch to dark mode'} onClick={() => setDarkMode((current) => !current)}>{darkMode ? <Sun size={18} /> : <Moon size={18} />}</button>
-        <Notifications /><div className="topbar-divider" /><button className="profile-button"><Avatar initials={initials} size="small" /><span className="profile-info"><strong>{role === 'Principal' ? 'Sarah Chen' : role === 'Teacher' ? 'Olivia Bennett' : role === 'Security Guard' ? 'Marcus Reed' : role === 'Parent' ? 'James Wilson' : role === 'Student' ? 'Ava Wilson' : 'Jordan Taylor'}</strong><small>{role}</small></span><ChevronDown size={14} /></button>
-        <button className="top-logout" title="Return to login" onClick={() => { localStorage.removeItem('sms-signed-in'); window.location.href = '/login' }}><LogOut size={16} /></button>
+        <Notifications /><div className="topbar-divider" /><button className="profile-button"><Avatar initials={initials} size="small" /><span className="profile-info"><strong>{user?.username}</strong><small>{role}</small></span><ChevronDown size={14} /></button>
+        <button className="top-logout" title="Sign out" onClick={() => { signOut(); navigate('/login', { replace: true }) }}><LogOut size={16} /></button>
       </div></header>
       <main className="content"><Outlet /></main>
       <footer className="app-footer"><span>© 2025 Northstar Academy</span><span>School Management System <span className="footer-dot">·</span> v1.0</span></footer>

@@ -1,0 +1,6 @@
+Principal	principal.admin	lRG9hOwAZbaMn2-2nmISZte_
+Office Staff	office.staff	d3gC4TjHTRvui1AbEfd6yDTF
+Teacher		teacher.staff	mvts-QIuhNkR6evQQr5nmgB8
+Parent		parent.family	Jrrx6oDPJDRxHvyUQakifT8s
+Student		student.learner	vhEv1XKf0WrgGx-8GcQT3qyP
+Security Guard	security.guard	uKYBX2GxceytclNYHmU4lqsX

@@ -1,6 +1,29 @@
 import type { Movement, Staff, Student } from './types'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'http://127.0.0.1:8001'
+const TOKEN_KEY = 'sms-access-token'
+
+export interface AuthAccount {
+  username: string
+  email: string
+  role: string
+}
+
+interface LoginResponse {
+  access_token: string
+  token_type: 'bearer'
+  expires_in: number
+  user: AuthAccount
+}
+
+export function getAuthToken(): string | null {
+  return sessionStorage.getItem(TOKEN_KEY)
+}
+
+export function setAuthToken(token: string | null): void {
+  if (token) sessionStorage.setItem(TOKEN_KEY, token)
+  else sessionStorage.removeItem(TOKEN_KEY)
+}
 
 export interface AttendanceRow extends Student {
   status: 'PRESENT' | 'ABSENT' | 'LATE' | 'EXCUSED'
@@ -77,11 +100,20 @@ export interface StaffUpdateInput extends StaffInput {
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const token = getAuthToken()
   const response = await fetch(`${API_BASE}${path}`, {
     ...init,
-    headers: { 'Content-Type': 'application/json', ...init?.headers },
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...init?.headers,
+    },
   })
   if (!response.ok) {
+    if (response.status === 401 && path !== '/api/auth/login') {
+      setAuthToken(null)
+      window.dispatchEvent(new Event('sms:unauthorized'))
+    }
     const body = await response.json().catch(() => null) as { detail?: string } | null
     throw new Error(body?.detail ?? `Request failed (${response.status})`)
   }
@@ -89,6 +121,9 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export const api = {
+  login: (username: string, password: string) =>
+    request<LoginResponse>('/api/auth/login', { method: 'POST', body: JSON.stringify({ username, password }) }),
+  currentAccount: () => request<AuthAccount>('/api/auth/me'),
   students: () => request<Student[]>('/api/students'),
   createStudent: (student: StudentInput) => request<Student>('/api/students', { method: 'POST', body: JSON.stringify(student) }),
   updateStudent: (id: string, student: StudentUpdateInput) => request<Student>(`/api/students/${encodeURIComponent(id)}`, { method: 'PUT', body: JSON.stringify(student) }),

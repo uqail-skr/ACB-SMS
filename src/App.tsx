@@ -9,7 +9,8 @@ import { GradebookPage, ReportsPage } from './pages/Academics'
 import { LoginPage } from './pages/Login'
 
 export default function App() {
-  const { signedIn } = useAuth()
+  const { signedIn, loading } = useAuth()
+  if (loading) return <main className="login-page"><p>Checking your account...</p></main>
   return <Routes>
     <Route path="/login" element={signedIn ? <Navigate to="/" replace /> : <LoginPage />} />
     <Route element={signedIn ? <AppLayout /> : <Navigate to="/login" replace />}>
